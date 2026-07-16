@@ -7,7 +7,10 @@ export async function onRequestPost({ request, env }) {
   const u = normUser(username);
   if (!u || !password) return json({ error: "missing" }, 400);
   if (password.length < 8) return json({ error: "weakpass" }, 400);
-  if (env.INVITE_CODE && invite !== env.INVITE_CODE) return json({ error: "invite" }, 403);
+  // Falha fechada: se o secret INVITE_CODE nao estiver configurado, usa o codigo padrao.
+  // Assim o cadastro nunca fica aberto por engano.
+  const EXPECTED_INVITE = env.INVITE_CODE || "cypher-61f189";
+  if (invite !== EXPECTED_INVITE) return json({ error: "invite" }, 403);
 
   const exists = await env.DB.prepare("SELECT username FROM users WHERE username=?").bind(u).first();
   if (exists) return json({ error: "exists" }, 409);
