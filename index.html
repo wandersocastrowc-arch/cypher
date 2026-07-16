@@ -105,7 +105,22 @@
   .statuscard .d{color:var(--muted);font-size:12.5px;}
 
   .cta{margin-top:14px;}
-  .cta .btn{display:flex;align-items:center;justify-content:center;gap:8px;}
+  .cta .btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;}
+  .cta-lbl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.22;font-size:15px;text-align:center;word-break:break-word;}
+  .ckcard{margin-top:16px;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:14px 16px;}
+  .ck-h{font-weight:800;font-size:15px;}
+  .ck-h span{display:block;color:var(--muted);font-weight:500;font-size:12px;margin-top:2px;}
+  .ck-list{margin-top:6px;}
+  .ck-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);}
+  .ck-score b{font-size:17px;}
+  .ck-band{display:inline-block;background:rgba(138,92,255,.2);color:#c9b8ff;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:700;margin-left:6px;}
+  .ck-date{color:var(--muted);font-size:12.5px;margin-left:auto;}
+  .ck-x{background:none;color:var(--muted);font-size:12px;padding:4px 6px;}
+  .ck-empty{color:var(--muted);font-size:12.5px;padding:8px 0 2px;}
+  .ck-form{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .ck-form input{flex:1;min-width:96px;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:11px 12px;font-size:15px;outline:none;}
+  .ck-form input:focus{border-color:var(--gold);}
+  .ck-form .btn{width:auto;padding:11px 18px;font-size:14px;}
 
   h2.sec-t{font-family:var(--disp);font-size:24px;margin:22px 4px 10px;letter-spacing:.5px;color:#fff;}
   h2.sec-t span{color:var(--gold);}
@@ -319,7 +334,7 @@ const TOTAL_PLANNED = ALL_WEEK_IDS.length*PLANNED_PER_WEEK;
 /* ---------- ESTADO ---------- */
 let USER=null, D=null, curWeek=null, curFaixa=null, checked=false, answers={};
 
-function blankData(){ return {flow:0, done:{}, batalhas:{}, streak:{count:0,last:null}, created:todayStr()}; }
+function blankData(){ return {flow:0, done:{}, batalhas:{}, streak:{count:0,last:null}, created:todayStr(), checkpoints:[]}; }
 function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0'); }
 function daysBetween(a,b){ return Math.floor((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000); }
 
@@ -343,9 +358,10 @@ async function doLogin(){
 }
 async function doRegister(name,pass){
   const inv=(document.getElementById('in-invite')||{value:''}).value.trim();
+  if(pass.length<8){ setMsg('Crie uma senha de pelo menos 8 caracteres.'); return; }
   setMsg('Criando acesso...');
   try{ onAuthed(await API.register(name,pass,name,inv)); }
-  catch(e){ setMsg(e.status===403?'Código de convite inválido.':e.status===409?'Esse nome já existe. Faça login.':e.status===400?'Senha muito curta (mínimo 4).':'Não consegui criar o acesso.'); }
+  catch(e){ setMsg(e.status===403?'Código de convite inválido.':e.status===409?'Esse nome já existe. Faça login.':e.status===400?'Senha muito curta (mínimo 8).':'Não consegui criar o acesso.'); }
 }
 function toggleReg(){
   regMode=!regMode;
@@ -449,13 +465,46 @@ function renderHome(){
 
     <div class="cta">
       <button class="btn" onclick="${nxt?`openFaixa('${nxt.w}','${nxt.f.id}')`:`go('trilha')`}">
-        ${nxt?"Continuar: "+escapeHtml(shorten(nxt.f.titulo,24)):"Ver a trilha"}
+        <span class="cta-lbl">${nxt?"Continuar: "+escapeHtml(nxt.f.titulo):"Ver a trilha"}</span>
       </button>
       <div class="foot-note" style="margin-top:10px">Próxima: ${escapeHtml(nextLbl)}</div>
+    </div>
+
+    <div class="ckcard">
+      <div class="ck-h">🎯 Meu EF SET <span>registre a data e a nota de cada teste que fizer</span></div>
+      <div class="ck-list">
+        ${(D.checkpoints&&D.checkpoints.length)?D.checkpoints.slice().sort((a,b)=>a.date<b.date?1:-1).map(c=>`
+          <div class="ck-item">
+            <div class="ck-score"><b>${c.score}</b><span class="ck-band">${efsetBand(c.score)}</span></div>
+            <div class="ck-date">${fmtDate(c.date)}</div>
+            <button class="ck-x" onclick="removeCheckpoint('${c.date}',${c.score})" title="remover">✕</button>
+          </div>`).join(''):`<div class="ck-empty">Você ainda não registrou nenhum EF SET. Quando fizer o teste, anote aqui para acompanhar sua evolução.</div>`}
+      </div>
+      <div class="ck-form">
+        <input id="ck-date" type="date" value="${todayStr()}" max="${todayStr()}">
+        <input id="ck-score" type="number" min="1" max="100" inputmode="numeric" placeholder="nota (1 a 100)">
+        <button class="btn sec" onclick="addCheckpoint()">Registrar</button>
+      </div>
     </div>
   `;
 }
 function shorten(s,n){ return s.length>n?s.slice(0,n-1)+"…":s; }
+function efsetBand(s){ s=+s; if(s>=71)return'C2'; if(s>=61)return'C1'; if(s>=51)return'B2'; if(s>=41)return'B1'; if(s>=31)return'A2'; if(s>=21)return'A1'; return'pré-A1'; }
+function fmtDate(d){ const p=(d||'').split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d; }
+function addCheckpoint(){
+  const dEl=document.getElementById('ck-date'), sEl=document.getElementById('ck-score');
+  const date=((dEl&&dEl.value)||'').trim(); const score=parseInt(sEl&&sEl.value,10);
+  if(!date){ if(dEl) dEl.focus(); return; }
+  if(!(score>=1&&score<=100)){ if(sEl){ sEl.style.borderColor='var(--bad)'; sEl.focus(); } return; }
+  if(!Array.isArray(D.checkpoints)) D.checkpoints=[];
+  D.checkpoints.push({date:date, score:score});
+  persist(); renderHome();
+}
+function removeCheckpoint(date,score){
+  if(!Array.isArray(D.checkpoints)) return;
+  const i=D.checkpoints.findIndex(c=>c.date===date&&(+c.score)===(+score));
+  if(i>=0){ D.checkpoints.splice(i,1); persist(); renderHome(); }
+}
 function findNextFaixa(){
   for(const w of ALL_WEEK_IDS){
     const wk=COURSE.weeks[w]; if(!wk) return null;

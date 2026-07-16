@@ -101,5 +101,5 @@ export function normUser(name) {
 }
 
 export function blankData(mcName) {
-  return { flow: 0, done: {}, batalhas: {}, streak: { count: 0, last: null }, mcName: mcName || "" };
+  return { flow: 0, done: {}, batalhas: {}, streak: { count: 0, last: null }, mcName: mcName || "", checkpoints: [] };
 }
